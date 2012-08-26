@@ -1,0 +1,21 @@
+<ul class="breadcrumb">
+    <li>
+        %= link_to Home => 'index'
+        <span class="divider">|</span>
+    </li>
+    <li>
+        %= link_to 'read' => {comic_book_id => $comic_book->{id}, chapter_ordinal => 1, page_ordinal => 1} => begin
+            %= $comic_book->{title}
+        % end
+        <span class="divider">/</span>
+    </li>
+    <li>
+        %= link_to 'read' => {comic_book_id => $comic_book->{id}, chapter_ordinal => $chapter->{ordinal}, page_ordinal => 1} => begin
+            %= $chapter->{title}
+        % end
+        <span class="divider">/</span>
+    </li>
+    <li class="active">
+        Page <%= $page->{ordinal} %>
+    </li>
+</ul>

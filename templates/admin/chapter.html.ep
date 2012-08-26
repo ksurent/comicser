@@ -1,0 +1,51 @@
+% layout 'admin/default';
+% title 'Add/edit chapter';
+<div class="row">
+    <div class="span6">
+        %= form_for 'save-chapter' => (class => 'form-inline') => begin
+% if(current_route 'edit-chapter') {
+            %= hidden_field 'chapter_id' => $chapter->{id}
+% }
+            %= hidden_field 'comic_book_id' => $comic_book->{id}
+            %= text_field   'title'         => $chapter->{title}, placeholder => 'Chapter title'
+            %= submit_button 'Save', class  => 'btn btn-primary'
+        % end
+% if(current_route 'edit-chapter') {
+        %= form_for 'save-image' => (enctype => 'multipart/form-data', class => 'form-inline') => begin
+            %= hidden_field 'comic_book_id' => $comic_book->{id}
+            %= hidden_field 'chapter_id'    => $chapter->{id}
+            <p class="help-block">Image:</p>
+            %= file_field 'file'
+            %= submit_button 'Upload', class => 'btn btn-primary'
+        %= end
+        %= form_for 'save-archive' => (enctype => 'multipart/form-data', class => 'form-inline') => begin
+            %= hidden_field 'comic_book_id' => $comic_book->{id}
+            %= hidden_field 'chapter_id'    => $chapter->{id}
+            <p class="help-block">Archive:</p>
+            %= file_field 'file'
+            %= submit_button 'Upload', class => 'btn btn-primary'
+        %= end
+        %= link_to 'delete-chapter' => {chapter_id => $chapter->{id}} => begin
+            %= submit_button 'Delete', class => 'btn btn-danger'
+        % end
+% }
+    </div>
+    <div class="span4">
+% if(current_route 'edit-chapter') {
+    % unless(@$pages) {
+        <p>No pages in this chapter. Use forms on the left add them!</p>
+    % }
+    % else {
+        <ul>
+        % for(@$pages) {
+            <li>
+                %= link_to 'edit-page' => {page_id => $_->{id}} => begin
+                    Page <%= $_->{ordinal} %>
+                % end
+            </li>
+        % }
+        </ul>
+    % }
+% }
+    </div>
+</div>

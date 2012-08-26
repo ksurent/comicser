@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title><%= title %></title>
+        %= stylesheet '/bootstrap/css/bootstrap.min.css'
+    </head>
+    <body style="padding-top: 10px;">
+        <div class="container">
+            %= include 'admin/breadcrumbs'
+% if(defined flash 'error') {
+            <div class="alert alert-error">
+                <strong>Oh noes!</strong>
+                %= flash 'error'
+            </div>
+% }
+% if(defined flash 'success') {
+            <div class="alert alert-success">
+                <strong>Success!</strong>
+                %= flash 'success'
+            </div>
+% }
+            %= content
+        </div>
+    </body>
+</html>

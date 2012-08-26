@@ -1,0 +1,38 @@
+% layout 'admin/default';
+% title 'Admin menu';
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Added</th>
+            <th>Last change</th>
+        </tr>
+    </thead>
+    <tbody>
+% unless(@$comics) {
+        <tr>
+            <td colspan="3" style="text-align: center;">
+                No comics. <%= link_to 'add-comic-book' => begin %>Add<% end %> one!
+            </td>
+        </tr>
+% }
+% else {
+%     for(@$comics) {
+        <tr>
+            <td>
+                <%= link_to 'edit-comic-book' => {comic_book_id => $_->{id}} => (title => 'Edit') => begin %>
+                    <%= $_->{title} %>
+                <% end %>
+            </td>
+            <td>
+                <i><%= $_->{created} %></i>
+            </td>
+            <td>
+                <i><%= $_->{last_update} %></i>
+            </td>
+        </tr>
+%     }
+% }
+    </tbody>
+</table>
+

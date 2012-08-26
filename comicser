@@ -1,0 +1,210 @@
+#!/usr/bin/env perl
+
+use utf8;
+use v5.14;
+
+use Comicser;
+use Mojo::JSON;
+use Mojolicious::Lite;
+use HTTP::BrowserDetect;
+use Validate::Tiny qw(is_required is_like);
+
+plugin 'config';
+plugin 'tag_helpers';
+plugin 'validate_tiny';
+plugin mount => {app->config->{adm}{prefix} => app->home->rel_file('comicser-admin')};
+
+my $schema = Comicser->connect(
+    join(':', 'dbi', 'mysql', app->config->{db}{name}, app->config->{db}{host}),
+    app->config->{db}{user},
+    app->config->{db}{pass},
+    {
+        mysql_enable_utf8 => 1,
+    },
+);
+
+app->secret(app->config->{secret});
+
+get '/' => sub {
+    my $self = shift;
+
+    my @comics = map +{%{$_->to_hash}, thumbnail => $_->thumbnail->to_hash},
+                 $schema->resultset('ComicBook')->list_with_pages;
+
+    my %bookmarks = %{ $self->session->{bookmarks} // {} };
+
+    $self->render(
+        'reader/index',
+        comics    => \@comics,
+        bookmarks => \%bookmarks,
+    );
+} => 'index';
+
+get '/:comic_book_id/:chapter_ordinal/:page_ordinal'
+=> [comic_book_id => qr/[0-9]+/, chapter_ordinal => qr/[0-9]+/, page_ordinal => qr/[0-9]+/]
+=> {chapter_ordinal => 1, page_ordinal => 1}
+=> sub {
+    my $self = shift;
+
+    my $page = $schema->resultset('Page')->by_ordinals(
+        $self->param('comic_book_id'),
+        $self->param('chapter_ordinal'),
+        $self->param('page_ordinal'),
+    ) or return $self->render_text('No such page', status => 404);
+
+    my $browser = HTTP::BrowserDetect->new($self->req->headers->user_agent);
+
+    $self->render(
+        'reader/read',
+        page             => $page->to_hash,
+        image            => $page->image->to_hash,
+        chapter          => $page->chapter->to_hash,
+        comic_book       => $page->chapter->comic_book->to_hash,
+        next             => $page->next_page,
+        prev             => $page->previous_page,
+        use_prerendering => $browser->chrome && $browser->public_major >= 13,
+        modifier_key     => $browser->mac ? 'Meta' : 'Ctrl',
+    );
+} => 'read';
+
+post '/bookmark' => sub {
+    my $self = shift;
+
+    my $rules = [
+        [qw(comic_book_id chapter_ordinal page_ordinal)] => [is_required(), is_like(qr/^[0-9]+$/)],
+        last_update => [is_required(), is_like(qr/^[0-9]{4}(?:-[0-9]{2}){2} [0-9]{2}(?::[0-9]{2}){2}$/)],
+        title => is_required(),
+    ];
+    unless($self->do_validation($rules)) {
+        $self->render_json({bookmarked => Mojo::JSON->false});
+        return;
+    }
+
+    $self->session->{bookmarks}{$self->param('comic_book_id')} = {
+        last_update     => $self->param('last_update'),
+        chapter_ordinal => $self->param('chapter_ordinal'),
+        page_ordinal    => $self->param('page_ordinal'),
+        title           => $self->param('title'),
+    };
+
+    $self->render_json({bookmarked => Mojo::JSON->true});
+} => 'bookmark';
+
+post '/resume' => sub {
+    my $self = shift;
+
+    my $rules = [
+        [qw(comic_book_id chapter_ordinal page_ordinal)] => [is_required(), is_like(qr/^[0-9]+$/)],
+        comic_book_id => sub {
+            my $value = shift;
+
+            exists $self->session->{bookmarks}{$value}
+                ? undef
+                : 'Unknown comic book';
+        },
+    ];
+    unless($self->do_validation($rules)) {
+        $self->redirect_to('index');
+        return;
+    }
+
+    delete $self->session->{$self->param('comic_book_id')};
+
+    $self->redirect_to(
+        'read',
+        comic_book_id   => $self->param('comic_book_id'),
+        chapter_ordinal => $self->param('chapter_ordinal'),
+        page_ordinal    => $self->param('page_ordinal'),
+    );
+} => 'resume';
+
+post '/reset' => sub {
+    my $self = shift;
+
+    $self->session->{bookmarks} = {};
+
+    $self->render_json({reset => Mojo::JSON->true});
+    $self->redirect_to('index');
+} => 'reset';
+
+app->start;
+
+__END__
+
+=encoding UTF-8
+
+=head1 NAME
+
+comicser - read comics online
+
+=head1 DESCRIPTION
+
+Comicser is a simple Mojolicious & DBIx::Class based webapp that enables you to create online comics reading.
+
+=head1 PREREQUISITES
+
+Perl 5.14.x, MySQL 5.x.
+
+=head1 INSTALLATION
+
+=over 4
+
+=item 1
+
+Run Makefile.PL
+
+=item 2
+
+Run make
+
+=item 3
+
+Import MySQL schema
+
+=item 4
+
+Adjust comicser.conf to your needs
+
+=item 5
+
+Run hypnotoad (or any other webserver)
+
+=back
+
+=head1 CONFIGURATION
+
+...
+
+=head1 TODO
+
+=over 4
+
+=item *
+
+Stress bookmarks that have new unread pages
+
+=item *
+
+Smarter bookmarks that recognize when a user has finished reading a comic book
+
+=item *
+
+Utilize transactions in admin application
+
+=item *
+
+Better index page layout
+
+=item *
+
+Add image optimization
+
+=item *
+
+Try deploying on a hosting that supports perl
+
+=item *
+
+Documentation
+
+=back

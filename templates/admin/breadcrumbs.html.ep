@@ -1,0 +1,52 @@
+<ul class="breadcrumb">
+% if(current_route 'index') {
+    <li class="active">
+        Home
+    </li>
+% }
+% else {
+    <li>
+        %= link_to Home => 'index'
+        <span class="divider">/</span>
+    </li>
+% }
+
+% if(current_route 'edit-comic-book' or current_route 'add-comic-book') {
+    <li class="active">
+        Add/edit comic book
+    </li>
+% }
+% elsif(current_route 'edit-chapter' or current_route 'add-chapter') {
+    <li>
+        <%= link_to 'edit-comic-book' => {comic_book_id => stash->{comic_book}{id}} => begin %>Edit comic book<% end %>
+        <span class="divider">/</span>
+    </li>
+    <li class="active">
+        Add/edit chapter
+    </li>
+% }
+% elsif(current_route 'edit-page' or current_route 'add-page') {
+    <li>
+        <%= link_to 'edit-comic-book' => {comic_book_id => stash->{chapter}{comic_book_id}} => begin %>Edit comic book<% end %>
+        <span class="divider">/</span>
+    </li>
+    <li>
+        <%= link_to 'edit-chapter' => {chapter_id => stash->{chapter}{id}} => begin %>Edit chapter<% end %>
+        <span class="divider">/</span>
+    </li>
+    <li class="active">
+        Add/edit page
+    </li>
+% }
+
+% if(current_route 'edit-chapter') {
+    <li>
+        <span class="divider">|</span>
+        <%= link_to 'add-chapter', {comic_book_id => stash->{chapter}{comic_book_id}} => begin %>New chapter<% end %>
+    </li>
+% }
+    <li>
+        <span class="divider">|</span>
+        %= link_to 'New comic book' => 'add-comic-book'
+    </li>
+</ul>

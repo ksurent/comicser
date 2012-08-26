@@ -1,0 +1,46 @@
+% layout 'reader/default';
+% title 'Choose your comic book';
+
+% if(%$bookmarks) {
+    <div style="padding-bottom: 2em; padding-top: 1em;">
+        % while(my($k, $v) = each %$bookmarks) {
+            %= form_for 'resume' => (class => 'form-inline') => begin
+                %= hidden_field 'comic_book_id' => $k
+                %= hidden_field 'chapter_ordinal' => $v->{chapter_ordinal}
+                %= hidden_field 'page_ordinal' => $v->{page_ordinal}
+                %= submit_button 'Resume reading ' . $v->{title}, class => 'btn btn-primary', title => sprintf 'Chapter %i, Page %i', $v->{chapter_ordinal}, $v->{page_ordinal}
+            %= end
+        % }
+        %= form_for 'reset' => (class => 'form-inline') => begin
+            %= submit_button 'Clear bookmarks', class => 'btn btn-danger'
+        %= end
+    </div>
+% }
+
+% unless(@$comics) {
+    <div style="text-align: center;">
+        No comics =(
+    </div>
+% }
+% else {
+    <ul class="thumbnails">
+    % for(@$comics) {
+        <li>
+            <div class="thumbnail">
+                %= link_to read => {comic_book_id => $_->{id}} => begin
+                    %= image $_->{thumbnail}{url}, width => $_->{thumbnail}{width}, height => $_->{thumbnail}{height}, alt => $_->{title}
+                % end
+                <p class="caption">
+                    %= link_to read => {comic_book_id => $_->{id}} => begin
+                        %= $_->{title}
+                    % end
+                    <br/>
+                    %= $_->{painter}
+                    <br/>
+                    %= $_->{publisher}
+                </p>
+            </div>
+        </li>
+    % }
+    </ul>
+% }

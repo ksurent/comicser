@@ -1,0 +1,368 @@
+#!/usr/bin/env perl
+
+use utf8;
+use v5.14;
+
+use Comicser;
+use Mojolicious::Lite;
+use Validate::Tiny qw(is_required is_like is_required_if);
+
+plugin 'basic_auth';
+plugin 'tag_helpers';
+plugin 'validate_tiny';
+plugin config => {file => app->home->rel_file('comicser.conf')};
+
+my $schema = Comicser->connect(
+    join(':', 'dbi', 'mysql', app->config->{db}{name}, app->config->{db}{host}),
+    app->config->{db}{user},
+    app->config->{db}{pass},
+    {
+        mysql_enable_utf8 => 1,
+    },
+);
+
+app->secret(app->config->{secret});
+
+under sub {
+    my $self = shift;
+
+    my $valid_user = app->config->{adm}{user};
+    my $valid_pass = app->config->{adm}{pass};
+
+    my $authenticated = 0;
+
+    if($self->req->url->to_abs->userinfo) {
+        $self->basic_auth(
+            adm => sub {
+                my($user, $pass) = @_;
+
+                if($valid_user eq $user and $valid_pass eq $pass) {
+                    return $authenticated = 1;
+                }
+            },
+        );
+    }
+    else {
+        $self->basic_auth('adm', $valid_user, $valid_pass);
+    }
+
+    $authenticated;
+};
+
+group {
+    under '/comic-book';
+
+    get '/add' => sub {
+        my $self = shift;
+
+        $self->render(
+            'admin/comic-book',
+            comic_book => {},
+            thumbnail  => {},
+            chapters   => [],
+        );
+    } => 'add-comic-book';
+
+    get '/edit/:comic_book_id' => [comic_book_id => qr/[0-9]+/] => sub {
+        my $self = shift;
+
+        my $comic_book = $schema->resultset('ComicBook')->by_id($self->param('comic_book_id'));
+        my @chapters   = map $_->to_hash, $comic_book->chapters;
+        $self->render(
+            'admin/comic-book',
+            comic_book => $comic_book->to_hash,
+            thumbnail  => $comic_book->thumbnail->to_hash,
+            chapters   => \@chapters,
+        );
+    } => 'edit-comic-book';
+
+    # XXX CSRF
+    get '/delete/:comic_book_id' => [comic_book_id => qr/[0-9]+/] => sub {
+        my $self = shift;
+
+        my $comic_book = $schema->resultset('ComicBook')->by_id($self->param('comic_book_id'));
+        $comic_book->delete;
+
+        $self->flash(success => 'Comic book has been deleted');
+        $self->redirect_to('index');
+    } => 'delete-comic-book';
+
+    post '/save' => sub {
+        my $self = shift;
+
+        my $params = $self->req->params->to_hash;
+        my $upload = $self->param('file');
+        my $rules  = [
+            [qw(title publisher painter)] => is_required(),
+            comic_book_id                 => is_like(qr/^[0-9]+$/),
+            file                          => is_required_if(!$params->{comic_book_id}, 'No file provided'),
+            file => sub {
+                return undef if $params->{comic_book_id};
+
+                return $upload->size ? undef : 'No file provided';
+            },
+        ];
+        unless($self->do_validation($rules)) {
+            $self->flash(error => $self->validator_error_string);
+            my @redirect = defined $params->{comic_book_id}
+                ? ('edit-comic-book', comic_book_id => $params->{comic_book_id})
+                : ('add-comic-book');
+            $self->redirect_to(@redirect);
+            return;
+        }
+
+        my $rs   = $schema->resultset('ComicBook');
+        my %args = (
+            $upload->size
+                ? (
+                    asset      => $upload->asset,
+                    path       => $self->config->{upload_path},
+                    max_width  => $self->config->{thumbnail}{max_width},
+                    max_height => $self->config->{thumbnail}{max_height},
+                  )
+                : (),
+            title      => $params->{title},
+            painter    => $params->{painter},
+            publisher  => $params->{publisher},
+        );
+        if($params->{comic_book_id}) {
+            $args{id} = $params->{comic_book_id};
+            if(exists $args{asset}) { $rs->update_with_thumbnail(\%args) }
+            else { $rs->update_all(\%args) }
+
+            $self->flash(success => 'Comics has been updated');
+        }
+        else {
+            my $comic_book = $rs->create_with_thumbnail(\%args);
+            $params->{comic_book_id} = $comic_book->id;
+
+            $self->flash(success => 'Comics has been added');
+        }
+
+        $self->redirect_to('edit-comic-book', comic_book_id => $params->{comic_book_id});
+    } => 'save-comic-book';
+};
+
+group {
+    under '/chapter';
+
+    get '/add/:comic_book_id' => [comic_book_id => qr/[0-9]+/] => sub {
+        my $self = shift;
+
+        my $comic_book = $schema->resultset('ComicBook')->by_id($self->param('comic_book_id'));
+
+        $self->render(
+            'admin/chapter',
+            comic_book => $comic_book->to_hash,
+            chapter    => {},
+            pages      => [],
+        );
+    } => 'add-chapter';
+
+    get '/edit/:chapter_id' => [chapter_id => qr/[0-9]+/] => sub {
+        my $self = shift;
+
+        my $chapter = $schema->resultset('Chapter')->by_id($self->param('chapter_id'));
+        my @pages   = map $_->to_hash, $chapter->pages;
+
+        $self->render(
+            'admin/chapter',
+            chapter    => $chapter->to_hash,
+            comic_book => $chapter->comic_book->to_hash,
+            pages      => \@pages,
+        );
+    } => 'edit-chapter';
+
+    # XXX CSRF
+    get '/delete/:chapter_id' => [chapter_id => qr/[0-9]+/] => sub {
+        my $self = shift;
+
+        my $chapter = $schema->resultset('Chapter')->by_id($self->param('chapter_id'));
+        $chapter->delete;
+
+        $self->flash(success => 'Chapter has been deleted');
+        $self->redirect_to('edit-comic-book', comic_book_id => $chapter->comic_book_id);
+    } => 'delete-chapter';
+
+    post '/save' => sub {
+        my $self = shift;
+
+        my $params = $self->req->params->to_hash;
+        my $rules  = [
+            [qw(title comic_book_id)]      => is_required(),
+            [qw(chapter_id comic_book_id)] => is_like(qr/^[0-9]+$/),
+        ];
+        unless($self->do_validation($rules)) {
+            $self->flash(error => $self->validator_error_string);
+            $self->redirect_to('edit-comic-book', comic_book_id => $params->{comic_book_id});
+            return;
+        }
+
+        my $rs = $schema->resultset('Chapter');
+        if($params->{chapter_id}) {
+            my $chapter = $rs->by_id($params->{chapter_id});
+            $chapter->title($params->{title});
+            $chapter->update;
+
+            $self->flash(success => 'Chapter has been updated');
+        }
+        else {
+            my $chapter = $rs->create({
+                title         => $params->{title},
+                comic_book_id => $params->{comic_book_id},
+            });
+            $params->{chapter_id} = $chapter->id;
+
+            $self->flash(success => 'Chapter has been added');
+        }
+
+        $self->redirect_to('edit-chapter', chapter_id => $params->{chapter_id});
+    } => 'save-chapter';
+};
+
+group {
+    under '/page';
+
+    get '/add/:chapter_id' => [chapter_id => qr/[0-9]+/] => sub {
+        my $self = shift;
+
+        my $chapter = $schema->resultset('Chapter')->by_id($self->param('chapter_id'));
+
+        $self->render(
+            'admin/page',
+            page    => {},
+            image   => {},
+            chapter => $chapter->to_hash,
+        );
+    } => 'add-page';
+
+    get '/edit/:page_id' => [page_id => qr/[0-9]+/] => sub {
+        my $self = shift;
+
+        my $page = $schema->resultset('Page')->by_id($self->param('page_id'));
+
+        $self->render(
+            'admin/page',
+            page     => $page->to_hash,
+            image    => $page->image->to_hash,
+            chapter  => $page->chapter->to_hash,
+        );
+    } => 'edit-page';
+
+    # XXX CSRF
+    get '/delete/:page_id' => [page_id => qr/[0-9]+/] => sub {
+        my $self = shift;
+
+        my $page = $schema->resultset('Page')->by_id($self->param('page_id'));
+        $page->delete;
+
+        $self->flash(success => 'Page has been deleted');
+        $self->redirect_to('edit-chapter', chapter_id => $page->chapter_id);
+    } => 'delete-page';
+
+    post '/save' => sub {
+        my $self = shift;
+
+        my $params = $self->req->params->to_hash;
+        my $upload = $self->param('file');
+        my $rules  = [
+            [qw(page_id)] => [is_required(), is_like(qr/^[0-9]+$/)],
+            file => sub {
+                $upload->size ? undef : 'No image provided';
+            },
+        ];
+        unless($self->do_validation($rules)) {
+            $self->flash(error => $self->validator_error_string);
+            $self->redirect_to('edit-page', page_id => $params->{page_id});
+            return;
+        }
+
+        $schema->resultset('Page')->update_with_image({
+            id         => $params->{page_id},
+            asset      => $upload->asset,
+            path       => $self->config->{upload_path},
+            max_width  => $self->config->{image}{max_width},
+            max_height => $self->config->{image}{max_height},
+        });
+
+        $self->flash(success => 'Page has been updated');
+        $self->redirect_to('edit-page', page_id => $params->{page_id});
+    } => 'save-page';
+
+    post '/image' => sub {
+        my $self = shift;
+
+        my $params = $self->req->params->to_hash;
+        my $upload = $self->param('file');
+        my $rules  = [
+            [qw(chapter_id)] => [is_required(), is_like(qr/^[0-9]+$/)],
+            file => sub {
+                $upload->size ? undef : 'No image provided';
+            },
+        ];
+        unless($self->do_validation($rules)) {
+            $self->flash(error => $self->validator_error_string);
+            $self->redirect_to('edit-chapter', chapter_id => $params->{chapter_id});
+            return;
+        }
+
+        my $page = $schema->resultset('Page')->create_with_image({
+            asset      => $upload->asset,
+            chapter_id => $params->{chapter_id},
+            path       => $self->config->{upload_path},
+            max_width  => $self->config->{image}{max_width},
+            max_height => $self->config->{image}{max_height},
+        });
+
+        $self->flash(success => 'Page has been added');
+        $self->redirect_to('edit-chapter', chapter_id => $params->{chapter_id});
+    } => 'save-image';
+
+    post '/archive' => sub {
+        my $self = shift;
+
+        my $params = $self->req->params->to_hash;
+        my $upload = $self->param('file');
+        my $rules  = [
+            [qw(comic_book_id chapter_id)] => [is_required(), is_like(qr/^[0-9]+$/)],
+            file => sub {
+                $upload->size ? undef : 'No file provided';
+            },
+        ];
+        unless($self->do_validation($rules)) {
+            $self->flash(error => $self->validator_error_string);
+            $self->redirect_to('edit-chapter', chapter_id => $params->{chapter_id});
+            return;
+        }
+
+        my $pages = $schema->resultset('Page')->create_from_archive({
+            archive       => $upload->asset,
+            comic_book_id => $params->{comic_book_id},
+            chapter_id    => $params->{chapter_id},
+            path          => $self->config->{upload_path},
+            max_width     => $self->config->{image}{max_width},
+            max_height    => $self->config->{image}{max_height},
+        });
+
+        if(@$pages) {
+            $self->flash(success => scalar(@$pages) . ' pages have been added');
+        }
+        else {
+            $self->flash(error => 'No pages have been added');
+        }
+        $self->redirect_to('edit-chapter', chapter_id => $params->{chapter_id});
+    } => 'save-archive';
+};
+
+get '/' => sub {
+    my $self = shift;
+
+    my @comics = map $_->to_hash, $schema->resultset('ComicBook')->list;
+
+    $self->render(
+        'admin/index',
+        comics => \@comics,
+    );
+} => 'index';
+
+app->start;

@@ -1,0 +1,41 @@
+% layout 'admin/default';
+% title 'Add/edit comic book';
+<div class="row">
+    <div class="span4">
+        %= form_for 'save-comic-book' => (enctype => 'multipart/form-data') => begin
+% if(current_route 'edit-comic-book') {
+            %= hidden_field 'comic_book_id' => $comic_book->{id}
+% }
+            <div class="control-group">
+                %= text_field 'title'     => $comic_book->{title},     placeholder => 'Comics title'
+                %= text_field 'painter'   => $comic_book->{painter},   placeholder => 'Painters'
+                %= text_field 'publisher' => $comic_book->{publisher}, placeholder => 'Publisher'
+                <p>Thumbnail:</p>
+                %= file_field 'file'
+% if(current_route 'edit-comic-book') {
+                %= image $thumbnail->{url}, width => $thumbnail->{width}, height => $thumbnail->{height}
+% }
+            </div>
+            <div class="control-group">
+                %= submit_button 'Save', class => 'btn btn-primary'
+            </div>
+        % end
+% if(current_route 'edit-comic-book') {
+        %= link_to 'delete-comic-book' => {comic_book_id => $comic_book->{id}} => begin
+            %= submit_button 'Delete', class => 'btn btn-danger'
+        % end
+% }
+    </div>
+    <div class="span4">
+% if(current_route 'edit-comic-book') {
+        <%= link_to 'add-chapter' => {comic_book_id => $comic_book->{id}} => begin %>Add chapter to this comic book<% end %>
+        <ul>
+    % for(@$chapters) {
+            <li>
+                <%= link_to 'edit-chapter' => {chapter_id => $_->{id}} => begin %><%= $_->{title} %><% end %>
+            </li>
+    % }
+        </ul>
+% }
+    </div>
+</div>

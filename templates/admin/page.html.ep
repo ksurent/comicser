@@ -1,0 +1,20 @@
+% layout 'admin/default';
+% title 'Add/edit page';
+
+%= form_for 'save-page' => (enctype => 'multipart/form-data', class => 'form-inline') => begin
+    %= hidden_field page_id => $page->{id}
+    %= file_field 'file'
+    %= submit_button 'Save', class => 'btn btn-primary'
+% end
+
+% if(current_route 'edit-page') {
+    <div>
+        %= link_to 'delete-page' => {page_id => $page->{id}} => begin
+            %= submit_button 'Delete', class => 'btn btn-danger'
+        % end
+    </div>
+
+    <div style="padding-top: 15px;">
+        %= image $image->{url}, width => $image->{width}, height => $image->{height}
+    </div>
+% }
