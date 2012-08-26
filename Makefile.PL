@@ -16,6 +16,7 @@ requires 'Mojolicious::Lite';
 requires 'HTTP::BrowserDetect';
 requires 'File::Type::WebImages';
 requires 'Class::Method::Modifiers';
+requires 'Mojolicious::Plugin::BasicAuth';
 requires 'Mojolicious::Plugin::ValidateTiny';
 
 #auto_install;
