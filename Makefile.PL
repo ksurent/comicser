@@ -19,6 +19,6 @@ requires 'Class::Method::Modifiers';
 requires 'Mojolicious::Plugin::BasicAuth';
 requires 'Mojolicious::Plugin::ValidateTiny';
 
-#auto_install;
+auto_install;
 
 WriteAll;
