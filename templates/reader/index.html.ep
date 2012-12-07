@@ -1,22 +1,6 @@
 % layout 'reader/default';
 % title 'Choose your comic book';
 
-% if(%$bookmarks) {
-    <div style="padding-bottom: 2em; padding-top: 1em;">
-        % while(my($k, $v) = each %$bookmarks) {
-            %= form_for 'resume' => (class => 'form-inline') => begin
-                %= hidden_field 'comic_book_id' => $k
-                %= hidden_field 'chapter_ordinal' => $v->{chapter_ordinal}
-                %= hidden_field 'page_ordinal' => $v->{page_ordinal}
-                %= submit_button 'Resume reading ' . $v->{title}, class => 'btn btn-primary', title => sprintf 'Chapter %i, Page %i', $v->{chapter_ordinal}, $v->{page_ordinal}
-            %= end
-        % }
-        %= form_for 'reset' => (class => 'form-inline') => begin
-            %= submit_button 'Clear bookmarks', class => 'btn btn-danger'
-        %= end
-    </div>
-% }
-
 % unless(@$comics) {
     <div style="text-align: center;">
         No comics =(
@@ -38,6 +22,18 @@
                     %= $_->{painter}
                     <br/>
                     %= $_->{publisher}
+                    <br/>
+                    % if(my $bm = $bookmarks->{$_->{id}}) {
+                        <div class="btn-group">
+                            % my $title = sprintf 'Resume reading at chapter %i, page %i', $bm->{chapter_ordinal}, $bm->{page_ordinal};
+                            %= link_to read => {comic_book_id => $_->{id}, chapter_ordinal => $bm->{chapter_ordinal}, page_ordinal => $bm->{page_ordinal}} => (class => 'btn', title => $title) => begin
+                                <i class="icon-play"></i>
+                            % end
+                            %= link_to reset => {comic_book_id => $_->{id}} => (class => 'btn', title => 'Remove bookmark') => begin
+                                <i class="icon-stop"></i>
+                            % end
+                        </div>
+                    % }
                 </p>
             </div>
         </li>

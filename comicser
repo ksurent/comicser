@@ -107,40 +107,12 @@ post '/bookmark' => sub {
     $self->render_json({bookmarked => Mojo::JSON->true});
 } => 'bookmark';
 
-post '/resume' => sub {
+# FIXME CSRF
+get '/reset/:comic_book_id' => sub {
     my $self = shift;
 
-    my $rules = [
-        [qw(comic_book_id chapter_ordinal page_ordinal)] => [is_required(), is_like(qr/^[0-9]+$/)],
-        comic_book_id => sub {
-            my $value = shift;
+    delete $self->session->{bookmarks}{$self->param('comic_book_id')};
 
-            exists $self->session->{bookmarks}{$value}
-                ? undef
-                : 'Unknown comic book';
-        },
-    ];
-    unless($self->do_validation($rules)) {
-        $self->redirect_to('index');
-        return;
-    }
-
-    delete $self->session->{$self->param('comic_book_id')};
-
-    $self->redirect_to(
-        'read',
-        comic_book_id   => $self->param('comic_book_id'),
-        chapter_ordinal => $self->param('chapter_ordinal'),
-        page_ordinal    => $self->param('page_ordinal'),
-    );
-} => 'resume';
-
-post '/reset' => sub {
-    my $self = shift;
-
-    $self->session->{bookmarks} = {};
-
-    $self->render_json({reset => Mojo::JSON->true});
     $self->redirect_to('index');
 } => 'reset';
 
