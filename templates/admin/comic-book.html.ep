@@ -4,12 +4,15 @@
     <div class="span4">
         %= form_for 'save-comic-book' => (enctype => 'multipart/form-data') => begin
 % if(current_route 'edit-comic-book') {
-            %= hidden_field 'comic_book_id' => $comic_book->{id}
+            %= hidden_field comic_book_id => $comic_book->{id}
+% }
+% else {
+            %= hidden_field complete => $comic_book->{complete}
 % }
             <div class="control-group">
-                %= text_field 'title'     => $comic_book->{title},     placeholder => 'Comics title'
-                %= text_field 'painter'   => $comic_book->{painter},   placeholder => 'Painters'
-                %= text_field 'publisher' => $comic_book->{publisher}, placeholder => 'Publisher'
+                %= text_field title     => $comic_book->{title},     placeholder => 'Comics title'
+                %= text_field painter   => $comic_book->{painter},   placeholder => 'Painters'
+                %= text_field publisher => $comic_book->{publisher}, placeholder => 'Publisher'
                 <p>Thumbnail:</p>
                 %= file_field 'file'
 % if(current_route 'edit-comic-book') {
@@ -17,6 +20,12 @@
 % }
             </div>
             <div class="control-group">
+% if(current_route 'edit-comic-book') {
+                <label class="checkbox">
+                    %= check_box complete => 1, $comic_book->{complete} ? (checked => 'checked') : ()
+                    This is a completed project
+                </label>
+% }
                 %= submit_button 'Save', class => 'btn btn-primary'
             </div>
         % end

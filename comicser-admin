@@ -95,7 +95,8 @@ group {
         my $rules  = [
             [qw(title publisher painter)] => is_required(),
             comic_book_id                 => is_like(qr/^[0-9]+$/),
-            file                          => is_required_if(!$params->{comic_book_id}, 'No file provided'),
+            complete                      => is_like(qr/^[0-9]+$/),
+            file => is_required_if(!$params->{comic_book_id}, 'No file provided'),
             file => sub {
                 return undef if $params->{comic_book_id};
 
@@ -124,7 +125,9 @@ group {
             title      => $params->{title},
             painter    => $params->{painter},
             publisher  => $params->{publisher},
+            complete   => $params->{complete} ? 1 : 0,
         );
+        warn Data::Dumper::Dumper(\%args);
         if($params->{comic_book_id}) {
             $args{id} = $params->{comic_book_id};
             if(exists $args{asset}) { $rs->update_with_thumbnail(\%args) }

@@ -44,7 +44,7 @@ __PACKAGE__->has_many(
     pages => 'Comicser::Result::Page',
     'chapter_id',
     {
-        order_by => {-desc => 'ordinal'},
+        order_by => {-asc => 'ordinal'},
     },
 );
 

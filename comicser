@@ -80,6 +80,23 @@ post '/bookmark' => sub {
         return;
     }
 
+    my $comic_book = $schema->resultset('ComicBook')->by_id($self->param('comic_book_id'));
+    my($last_chapter, $last_page) = $comic_book->get_last_chapter_and_page;
+    if(
+        $comic_book->complete
+        and (
+            $self->param('chapter_ordinal') == $last_chapter
+            and $self->param('page_ordinal') == $last_page
+        )
+    )
+    {
+        delete $self->session->{bookmarks}{$comic_book->id};
+        return $self->render_json({
+            bookmarked => Mojo::JSON->false,
+            finished   => Mojo::JSON->true,
+        });
+    }
+
     $self->session->{bookmarks}{$self->param('comic_book_id')} = {
         last_update     => $self->param('last_update'),
         chapter_ordinal => $self->param('chapter_ordinal'),
@@ -178,14 +195,6 @@ Run hypnotoad (or any other webserver)
 =head1 TODO
 
 =over 4
-
-=item *
-
-Stress bookmarks that have new unread pages
-
-=item *
-
-Smarter bookmarks that recognize when a user has finished reading a comic book
 
 =item *
 

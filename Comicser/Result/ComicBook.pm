@@ -64,7 +64,7 @@ __PACKAGE__->has_many(
     chapters => 'Comicser::Result::Chapter',
     'comic_book_id',
     {
-        order_by => {-desc => 'ordinal'},
+        order_by => {-asc => 'ordinal'},
     },
 );
 
@@ -96,6 +96,15 @@ sub to_hash {
     my $self = shift;
     
     +{$self->get_columns};
+}
+
+sub get_last_chapter_and_page {
+    my $self = shift;
+
+    my @chapters = $self->chapters;
+    my @pages    = $chapters[-1]->pages;
+
+    ($chapters[-1]->ordinal, $pages[-1]->ordinal);
 }
 
 1;
