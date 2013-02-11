@@ -127,7 +127,6 @@ group {
             publisher  => $params->{publisher},
             complete   => $params->{complete} ? 1 : 0,
         );
-        warn Data::Dumper::Dumper(\%args);
         if($params->{comic_book_id}) {
             $args{id} = $params->{comic_book_id};
             if(exists $args{asset}) { $rs->update_with_thumbnail(\%args) }
