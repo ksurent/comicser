@@ -1,4 +1,4 @@
-% layout 'reader/comic-book-page';
+% layout 'reader/mobile/comic-book-page';
 % title $page->{description};
 
 % if($next->{page}) {

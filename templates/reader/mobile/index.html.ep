@@ -1,4 +1,4 @@
-% layout 'reader/default';
+% layout 'reader/mobile/default';
 % title 'Choose your comic book';
 
 % unless(@$comics) {
