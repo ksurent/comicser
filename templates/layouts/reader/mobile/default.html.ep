@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title><%= title %></title>
+        %= stylesheet '/bootstrap/css/bootstrap.min.css'
+    </head>
+    <body>
+        <div class="container">
+            %= content
+        </div>
+    </body>
+</html>

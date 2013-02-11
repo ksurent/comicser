@@ -1,0 +1,42 @@
+% layout 'reader/default';
+% title 'Choose your comic book';
+
+% unless(@$comics) {
+    <div style="text-align: center;">
+        No comics =(
+    </div>
+% }
+% else {
+    <ul class="thumbnails">
+    % for(@$comics) {
+        <li>
+            <div class="thumbnail">
+                %= link_to read => {comic_book_id => $_->{id}} => begin
+                    %= image $_->{thumbnail}{url}, width => $_->{thumbnail}{width}, height => $_->{thumbnail}{height}, alt => $_->{title}
+                % end
+                <p class="caption">
+                    %= link_to read => {comic_book_id => $_->{id}} => begin
+                        %= $_->{title}
+                    % end
+                    <br/>
+                    %= $_->{painter}
+                    <br/>
+                    %= $_->{publisher}
+                    <br/>
+                    % if(my $bm = $bookmarks->{$_->{id}}) {
+                        <div class="btn-group">
+                            % my $title = sprintf 'Resume reading at chapter %i, page %i', $bm->{chapter_ordinal}, $bm->{page_ordinal};
+                            %= link_to read => {comic_book_id => $_->{id}, chapter_ordinal => $bm->{chapter_ordinal}, page_ordinal => $bm->{page_ordinal}} => (class => 'btn', title => $title) => begin
+                                <i class="icon-play"></i>
+                            % end
+                            %= link_to reset => {comic_book_id => $_->{id}} => (class => 'btn', title => 'Remove bookmark') => begin
+                                <i class="icon-stop"></i>
+                            % end
+                        </div>
+                    % }
+                </p>
+            </div>
+        </li>
+    % }
+    </ul>
+% }
