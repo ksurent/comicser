@@ -33,8 +33,12 @@ get '/' => sub {
 
     my %bookmarks = %{ $self->session->{bookmarks} // {} };
 
+    my $browser = HTTP::BrowserDetect->new($self->req->headers->user_agent);
+
+    my $tmpl = $browser->mobile ? 'reader/mobile/index' : 'reader/index';
+
     $self->render(
-        'reader/index',
+        $tmpl,
         comics    => \@comics,
         bookmarks => \%bookmarks,
     );
@@ -54,8 +58,10 @@ get '/:comic_book_id/:chapter_ordinal/:page_ordinal'
 
     my $browser = HTTP::BrowserDetect->new($self->req->headers->user_agent);
 
+    my $tmpl = $browser->mobile ? 'reader/mobile/read' : 'reader/read';
+
     $self->render(
-        'reader/read',
+        $tmpl,
         page             => $page->to_hash,
         image            => $page->image->to_hash,
         chapter          => $page->chapter->to_hash,
